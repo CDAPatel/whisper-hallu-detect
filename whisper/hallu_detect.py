@@ -14,7 +14,7 @@ def hallu_detect(
     gauss_std=2,
     mean_threshold=0.85,
     std_threshold=0.05,
-    peak_distance=3,
+    peak_distance=4,
     is_test=False # Do i need this?
     ):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -28,10 +28,6 @@ def hallu_detect(
         return 'Detector Error'
     # Initialise default result
     result = 'None'
-    
-    # Then generate emission matrix
-    emission, labels, waveform = generate_emission(audio, device)
-    # waveform currently included as a return for plotting later 
 
     # Clean transcript
     clean_transcript, error_flag = clean_string(transcript)
@@ -40,6 +36,10 @@ def hallu_detect(
         print("Errors detected in transcript.")
         result = 'Error'
         return result
+
+    # Then generate emission matrix
+    emission, labels, waveform = generate_emission(audio, device)
+    # waveform currently included as a return for plotting later 
 
     # Tokenise transcript
     dictionary = {c: i for i, c in enumerate(labels)}

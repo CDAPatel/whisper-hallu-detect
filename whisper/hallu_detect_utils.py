@@ -1,5 +1,6 @@
 import string
 import inflect
+import re
 import numpy as np
 from scipy.signal import windows, convolve, find_peaks
 from dataclasses import dataclass
@@ -32,6 +33,7 @@ def clean_string(text):
     text = convert_numerals(text)
 
     # have to clean again, this is not an elegant solution
+    # TODO: Can I fixed this by changing the and in number_to_words?
     clean_text =''.join(ch if ch not in exclude else '' for ch in text)
 
     # Convert to uppercase and replace spaces with |
@@ -116,8 +118,21 @@ def token_to_num(text):
             return p.number_to_words(text)
     elif text[:-2].isdigit() and text[-2:] in ['st', 'nd', 'rd', 'th']: # ordinals
         return p.number_to_words(p.ordinal(text[:-2]))
+    elif contains_digits(text):
+        sequences = re.findall(r'\d+', text)
+        for seq in sequences:
+            number = p.number_to_words(seq)
+            if 1000 <= int(seq) <= 9999: # Special case for handling dates
+                first = p.number_to_words(text[:2])
+                second = p.number_to_words(text[2:])
+                number = f"{first} {second}"   
+            text = text.replace(seq, number, 1)
+        return text
     else:
         return text
+
+def contains_digits(word):
+    return any(char.isdigit() for char in word)
 
 def find_gradient(values, window_size):
     result = []
@@ -144,7 +159,7 @@ def peak_detection(data, mean_threshold, std_threshold, peak_distance):
     for peak in peaks:
         start = max(0, peak - peak_distance//2)
         end = min(len(data), peak + peak_distance//2)
-        seg = data[start:end]
+        seg = data[start:end] # think this might need adjusting?
         seg_mean = np.mean(seg)
         seg_std = np.std(seg)
 
