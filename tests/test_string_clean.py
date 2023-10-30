@@ -1,5 +1,5 @@
 """
- Placeholder description.
+    Script used to test the clean_string() function of the hallucination detector.
 """
 
 from whisper.hallu_detect import clean_string

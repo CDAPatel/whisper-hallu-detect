@@ -1,5 +1,5 @@
 """
- Placeholder description.
+ Script that is used to test the hallucination detector on individual cases.
 """
 
 from whisper.hallu_detect import hallu_detect

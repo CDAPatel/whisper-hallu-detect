@@ -37,11 +37,16 @@ def hallu_detect(
     mean_threshold=0.85,    # Threshold for average gradient in peak detection
     std_threshold=0.05,     # Threshold for standard deviation in peak detection
     peak_distance=4,        # Peak width
-    is_test=False           # TODO: Do I need this?
+    model = None,           # Temporary to reduce time while testing.
+    device = None,
+    labels = None,
+    bundle = None,
+    is_test= False           # TODO: Do I need this?
     #TODO: Add a flag for word detection
     ):
     # Find the device, check for invalid input
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if device is None:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     if transcript is None:
         print("No transcription provided.")
@@ -62,7 +67,10 @@ def hallu_detect(
         return result
 
     # Generate the emission matrix - holds probabilites for each label at each frame (time)
-    emission, labels, waveform = generate_emission(audio, device)
+    if model is None:
+        emission, labels, waveform = generate_emission(audio, device)
+    else:
+        emission, labels, waveform = generate_emission(audio, device, model=model, bundle=bundle, labels=labels)
     # TODO: waveform is only included for plotting functionality that will be added later
 
     # Tokenise transcript
@@ -96,11 +104,13 @@ def hallu_detect(
     return result
     #TODO: More work required for word based detection. 
 
-def generate_emission(audio, device):
-    # Initialise the wav2vec model
-    bundle = torchaudio.pipelines.WAV2VEC2_ASR_BASE_960H
-    model = bundle.get_model().to(device)
-    labels = bundle.get_labels()
+def generate_emission(audio, device, model=None, bundle=None, labels=None):
+    if model is None:
+        # Initialise the wav2vec model
+        bundle = torchaudio.pipelines.WAV2VEC2_ASR_BASE_960H
+        model = bundle.get_model().to(device)
+        labels = bundle.get_labels()
+        
     # Generate the emission matrix
     with torch.inference_mode():
         waveform, _ = torchaudio.load(audio)
