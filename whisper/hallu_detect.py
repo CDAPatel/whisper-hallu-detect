@@ -36,7 +36,7 @@ def hallu_detect(
     # Clean transcript
     clean_transcript, error_flag = clean_string(transcript)
 
-    if error_flag == True:
+    if error_flag:
         print("Errors detected in transcript.")
         result = 'Error'
         return result

@@ -29,7 +29,10 @@ def clean_string(text):
     text =''.join(ch if ch not in exclude else ' ' for ch in text)
 
     # Convert numbers to words
-    clean_text = convert_numerals(text)
+    text = convert_numerals(text)
+
+    # have to clean again, this is not an elegant solution
+    clean_text =''.join(ch if ch not in exclude else '' for ch in text)
 
     # Convert to uppercase and replace spaces with |
     clean_text.lstrip(" ")
@@ -39,7 +42,7 @@ def clean_string(text):
     return clean_text, flag
 
 def detect_chars(text):
-    valid_chars = set(string.ascii_letters + string.digits + string.punctuation)
+    valid_chars = set(string.ascii_letters + string.digits + string.punctuation + " ")
 
     for c in text:
         if c not in valid_chars:
@@ -104,14 +107,15 @@ def replace_titles(text):
 def token_to_num(text):
     p = inflect.engine()
 
-    if 1000 <= int(text) <= 9999: # Special case for handling dates
-        first = p.number_to_words(text[:2])
-        second = p.number_to_words(text[2:])
-        return f"{first} {second}" 
-    elif text.isdigit():
-        return p.number_to_words(text)
-    elif text[:-2].isdigit() and text[-2:] in ['st', 'nd', 'rd', 'th']:
-        return p.number_to_words(text[:-2], ordinal=True)
+    if text.isdigit(): # Only a number
+        if 1000 <= int(text) <= 9999: # Special case for handling dates
+            first = p.number_to_words(text[:2])
+            second = p.number_to_words(text[2:])
+            return f"{first} {second}" 
+        else:   # all other numbers
+            return p.number_to_words(text)
+    elif text[:-2].isdigit() and text[-2:] in ['st', 'nd', 'rd', 'th']: # ordinals
+        return p.number_to_words(p.ordinal(text[:-2]))
     else:
         return text
 

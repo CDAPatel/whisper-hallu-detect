@@ -16,7 +16,7 @@ if sys.platform.startswith("linux") and platform.machine() == "x86_64":
     requirements.append("triton==2.0.0")
 
 setup(
-    name="openai-whisper",
+    name="openai-whisper-hallu-detect",
     py_modules=["whisper"],
     version=read_version(),
     description="Robust Speech Recognition via Large-Scale Weak Supervision",
