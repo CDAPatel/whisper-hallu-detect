@@ -1,3 +1,16 @@
+"""
+Title: Utility Script for Hallucination Detector
+Author: Carlin Patel, z5259674
+Description: 
+    A script that contains helper functions used in hallu_detect.py
+
+Overview of important functions:
+    - clean_string(): Formats input transcription
+    - find_gradient(): Finds the gradient of token path
+    - gaussian_smooth(): Applys a gaussian window to smooth the calculated gradient
+    - peak_detection(): Finds peaks in the smoothed gradient & determines if there is a hallucination
+"""
+
 import string
 import inflect
 import re
@@ -7,22 +20,12 @@ from dataclasses import dataclass
 from typing import List, Dict
 
 def clean_string(text):
-    # Need to:
-    #   - Make all uppercase
-    #   - Remove all punctuation
-    #   - Replace whitespaces with '|'
-    #   - Convert numbers to text
-    
-    # Initialise inflect, used to convert numbers
-    
-
-    # flag is used to detect errors
-    # first we check if there are any non-allowed characters. This detector is only built for english, a True return indicates an error.
+    # Check for invalid characters. Detector is only built for English
     flag = detect_chars(text)
-    if flag:
+    if flag:    # If invalid characters are detected, then the transcription is an error
         return text, flag
     
-    # Alter titles
+    # Change common honorifics into full words
     text = replace_titles(text)
     
     # Remove punctuation except - and '
@@ -55,15 +58,12 @@ def convert_numerals(text):
     words = text.split()
 
     # Iterate through each word and look for numbers.
-    # Only punctuation characters left are ' and -, so add a special case for them
-
     for i, word in enumerate(words):
-        # Check for - or '
-        if "-" in word or "'" in word:
+        if "-" in word or "'" in word: # Only punctuation left is " - " and " ' ", so add a special case
             splits = []
             tokens = []
 
-            # Split the word by ' or -
+            # Split the word where - or ' occur
             prev_idx = 0
             for j, char in enumerate(word):
                 if char in ["-","'"]:
@@ -72,10 +72,10 @@ def convert_numerals(text):
                     prev_idx = j+1
             tokens.append(word[prev_idx:])  # make sure to include the last segment
 
-            # Now convert tokens that are numbers
+            # Convert tokens that are numbers
             tokens = [token_to_num(token) for token in tokens]
 
-            # Reconstruct with the splitters
+            # Reconstruct with the original punctuation
             new_word = tokens[0]
 
             for j, split in enumerate(splits):
@@ -109,32 +109,33 @@ def replace_titles(text):
 def token_to_num(text):
     p = inflect.engine()
 
-    if text.isdigit(): # Only a number
-        if 1000 <= int(text) <= 9999: # Special case for handling dates
+    if text.isdigit(): # Numbers only
+        if 1000 <= int(text) <= 9999: # Special case for handling numbers that are read as years
             first = p.number_to_words(text[:2])
             second = p.number_to_words(text[2:])
             return f"{first} {second}" 
-        else:   # all other numbers
+        else:   # All other numbers
             return p.number_to_words(text)
-    elif text[:-2].isdigit() and text[-2:] in ['st', 'nd', 'rd', 'th']: # ordinals
+    elif text[:-2].isdigit() and text[-2:] in ['st', 'nd', 'rd', 'th']: # Ordinals
         return p.number_to_words(p.ordinal(text[:-2]))
-    elif contains_digits(text):
+    elif contains_digits(text): # Numbers adjacent to text
         sequences = re.findall(r'\d+', text)
         for seq in sequences:
             number = p.number_to_words(seq)
-            if 1000 <= int(seq) <= 9999: # Special case for handling dates
+            if 1000 <= int(seq) <= 9999: # same case handling as above
                 first = p.number_to_words(text[:2])
                 second = p.number_to_words(text[2:])
                 number = f"{first} {second}"   
             text = text.replace(seq, number, 1)
         return text
-    else:
+    else:   # If no numbers, just return the original text
         return text
 
 def contains_digits(word):
     return any(char.isdigit() for char in word)
 
 def find_gradient(values, window_size):
+    # Calculate gradient using a given window size
     result = []
     for i in range(len(values)):
         if i < window_size or i > len(values) - window_size - 1: # Unsure if this is the correct descision.
@@ -151,18 +152,21 @@ def gaussian_smooth(values, window_size, std):
     return convolve(values, window/window.sum(), mode='same')
 
 def peak_detection(data, mean_threshold, std_threshold, peak_distance):
+    # Find indexs of peaks that meet mean_threshold requirement
     peaks, _ = find_peaks(data, height=mean_threshold, distance=peak_distance)
 
-    # Result will hold all segments that have been identified as potential hallucinations.
+    # Result will hold all segments that have been identified as potential hallucinations
     result = []
 
     for peak in peaks:
+        # Determine size of peak
         start = max(0, peak - peak_distance//2)
         end = min(len(data), peak + peak_distance//2)
         seg = data[start:end] # think this might need adjusting?
         seg_mean = np.mean(seg)
         seg_std = np.std(seg)
 
+        # Check if peak meets conditions to be classified as a hallucination
         if seg_mean >= mean_threshold and seg_std <= std_threshold:
             result.append((start, end))
 

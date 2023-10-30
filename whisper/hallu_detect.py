@@ -1,24 +1,47 @@
+"""
+Title: Hallucination Detector for Whisper
+Author: Carlin Patel, z5259674
+Description: 
+    A script that takes an audio file and the Whisper produced transcript and attempts to detect
+    hallucinations using forced alignment.
+
+Inputs:
+    transcript [string]: transcript produced by Whisper
+    audio [string]: file path to corresponding audio
+
+Outputs:
+    Result [string]: which can take on these values:
+    - "Hallucination" - indicates that a hallucination has been detected
+    - "None" - no hallucination detected, could be a success or error
+    - "Error" - invalid character detected in the transcript
+    - "Detector Error" -  missing audio or transcript
+
+Notes:
+    - This project was created as part of an Elec. Eng. Thesis at the University of New South Wales
+    - Large parts of this algorithm are adapted from:
+        https://pytorch.org/audio/stable/tutorials/forced_alignment_tutorial.html
+    - Whisper github:
+        https://github.com/openai/whisper
+"""
+
 import torch
 import torchaudio
-import numpy as np
-
 from .hallu_detect_utils import clean_string, find_gradient, gaussian_smooth, peak_detection, Point
-
-# Do i want to define the hyper params in the hallu_detect call? or here.
 
 def hallu_detect(
     transcript=None,
     audio=None,
-    grad_window=5,
-    gauss_window=5,
-    gauss_std=2,
-    mean_threshold=0.85,
-    std_threshold=0.05,
-    peak_distance=4,
-    is_test=False # Do i need this?
+    grad_window=5,          # Size of Gradient window
+    gauss_window=5,         # Size of Gaussian window for smoothing
+    gauss_std=2,            # Standard deviation of Gaussian window for smoothing
+    mean_threshold=0.85,    # Threshold for average gradient in peak detection
+    std_threshold=0.05,     # Threshold for standard deviation in peak detection
+    peak_distance=4,        # Peak width
+    is_test=False           # TODO: Do I need this?
+    #TODO: Add a flag for word detection
     ):
+    # Find the device, check for invalid input
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    # First check for invalid input and that CUDA is being used
     
     if transcript is None:
         print("No transcription provided.")
@@ -26,46 +49,47 @@ def hallu_detect(
     if audio is None:
         print("No input audio provided.")
         return 'Detector Error'
+    
     # Initialise default result
     result = 'None'
 
     # Clean transcript
     clean_transcript, error_flag = clean_string(transcript)
 
-    if error_flag:
+    if error_flag:  # Invalid character detected in the transcript
         print("Errors detected in transcript.")
         result = 'Error'
         return result
 
-    # Then generate emission matrix
+    # Generate the emission matrix - holds probabilites for each label at each frame (time)
     emission, labels, waveform = generate_emission(audio, device)
-    # waveform currently included as a return for plotting later 
+    # TODO: waveform is only included for plotting functionality that will be added later
 
     # Tokenise transcript
     dictionary = {c: i for i, c in enumerate(labels)}
     tokens = [dictionary[c] for c in clean_transcript]
 
-    # generate trellis
+    # Generate trellis
     trellis = generate_trellis(emission, tokens)
 
-    # Find the path
+    # Find the most likely path by backtracking
     path = path_finding(trellis, emission, tokens)
 
-    # Extract values
+    # Extract token index values for gradient calculation
     values = []
     for point in path:
         values.append(point.token_index)
     
-    # Gradient
+    # Gradient calcuation
     gradient = find_gradient(values, grad_window)
 
-    # smoothing
+    # Smoothing with gaussian window
     gradient_smooth = gaussian_smooth(gradient, gauss_window, gauss_std)
     
-    # peak detection & threshold check
+    # Find peaks and check if they meet the threshold for hallucination 
     segments = peak_detection(gradient_smooth, mean_threshold, std_threshold, peak_distance)
     
-    if segments:
+    if segments:    # If segments has elements then a hallucination has been detected
         print("Hallucination detected in transcript.")
         result = 'Hallucination'
 
@@ -73,16 +97,16 @@ def hallu_detect(
     #TODO: More work required for word based detection. 
 
 def generate_emission(audio, device):
+    # Initialise the wav2vec model
     bundle = torchaudio.pipelines.WAV2VEC2_ASR_BASE_960H
     model = bundle.get_model().to(device)
-    labels = bundle.get_labels()    
+    labels = bundle.get_labels()
+    # Generate the emission matrix
     with torch.inference_mode():
         waveform, _ = torchaudio.load(audio)
         emissions, _ = model(waveform.to(device)) 
         emissions = torch.log_softmax(emissions, dim=-1)
-    # The emission matrix produces a probability for each label at each frame
     emission = emissions[0].cpu().detach()
-
     return emission, labels, waveform
 
 def generate_trellis(emission, tokens, blank_id=0):
