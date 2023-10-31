@@ -1,6 +1,6 @@
 import pandas as pd
 
-results = "C:\\dev\\whisper-hallu-detect\\test_results\\initialTest.csv"
+results = "C:\\dev\\whisper-hallu-detect\\test_results\\init_param_tests\\mean_85_height_85_with_std.csv"
 
 def main():
 
@@ -28,6 +28,8 @@ def main():
     tot = 0
 
     for idx, row in data.iterrows():
+        if not pd.notna(row['detector']):
+            break
         tot += 1
 
         if row['annotation'] == 'H':

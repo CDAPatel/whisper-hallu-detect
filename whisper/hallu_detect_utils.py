@@ -146,14 +146,18 @@ def find_gradient(values, window_size):
         
     return result
 
+# TODO: Determine if this function needs to be removed
 def gaussian_smooth(values, window_size, std):
     # Create a Gaussian window
     window = windows.gaussian(window_size, std)  
     return convolve(values, window/window.sum(), mode='same')
 
-def peak_detection(data, mean_threshold, std_threshold, peak_distance):
+def moving_average(values, window_size):
+    return convolve(values, np.ones(window_size)/window_size, mode='same')
+
+def peak_detection(data, mean_threshold, peak_distance, height_threshold):
     # Find indexs of peaks that meet mean_threshold requirement
-    peaks, _ = find_peaks(data, height=mean_threshold, distance=peak_distance)
+    peaks, _ = find_peaks(data, height=height_threshold, distance=peak_distance)
 
     # Result will hold all segments that have been identified as potential hallucinations
     result = []
@@ -167,7 +171,7 @@ def peak_detection(data, mean_threshold, std_threshold, peak_distance):
         seg_std = np.std(seg)
 
         # Check if peak meets conditions to be classified as a hallucination
-        if seg_mean >= mean_threshold and seg_std <= std_threshold:
+        if seg_mean >= mean_threshold:
             result.append((start, end))
 
     return result

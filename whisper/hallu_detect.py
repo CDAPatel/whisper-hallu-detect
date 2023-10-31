@@ -26,22 +26,20 @@ Notes:
 
 import torch
 import torchaudio
-from .hallu_detect_utils import clean_string, find_gradient, gaussian_smooth, peak_detection, Point
+from .hallu_detect_utils import clean_string, find_gradient, peak_detection, Point, moving_average
 
 def hallu_detect(
     transcript=None,
     audio=None,
-    grad_window=5,          # Size of Gradient window
-    gauss_window=5,         # Size of Gaussian window for smoothing
-    gauss_std=2,            # Standard deviation of Gaussian window for smoothing
+    window_size=5,         # Size of Gradient and Smoothing window
+    gauss_std=2,            # Standard deviation of Gaussian window for smoothing #TODO: If Gaussian is not going to be used, remove this.
+    height_threshold=0.85,  # Threshold for minimum height in peak detection
     mean_threshold=0.85,    # Threshold for average gradient in peak detection
-    std_threshold=0.05,     # Threshold for standard deviation in peak detection
-    peak_distance=4,        # Peak width
+    peak_distance=2,        # Peak width
     model = None,           # Temporary to reduce time while testing.
     device = None,
-    labels = None,
     bundle = None,
-    is_test= False           # TODO: Do I need this?
+    is_test= False           # Flag used for large scale testing so that the wav2vec model is not loaded every iteration
     #TODO: Add a flag for word detection
     ):
     # Find the device, check for invalid input
@@ -67,10 +65,10 @@ def hallu_detect(
         return result
 
     # Generate the emission matrix - holds probabilites for each label at each frame (time)
-    if model is None:
-        emission, labels, waveform = generate_emission(audio, device)
+    if is_test:
+        emission, labels, waveform = generate_emission(audio, device, model=model, bundle=bundle)
     else:
-        emission, labels, waveform = generate_emission(audio, device, model=model, bundle=bundle, labels=labels)
+        emission, labels, waveform = generate_emission(audio, device)
     # TODO: waveform is only included for plotting functionality that will be added later
 
     # Tokenise transcript
@@ -89,13 +87,13 @@ def hallu_detect(
         values.append(point.token_index)
     
     # Gradient calcuation
-    gradient = find_gradient(values, grad_window)
+    gradient = find_gradient(values, window_size)
 
-    # Smoothing with gaussian window
-    gradient_smooth = gaussian_smooth(gradient, gauss_window, gauss_std)
-    
+    # Smoothing with moving average
+    gradient_smooth = moving_average(gradient, window_size)
+
     # Find peaks and check if they meet the threshold for hallucination 
-    segments = peak_detection(gradient_smooth, mean_threshold, std_threshold, peak_distance)
+    segments = peak_detection(gradient_smooth, mean_threshold, peak_distance, height_threshold)
     
     if segments:    # If segments has elements then a hallucination has been detected
         print("Hallucination detected in transcript.")
@@ -104,13 +102,13 @@ def hallu_detect(
     return result
     #TODO: More work required for word based detection. 
 
-def generate_emission(audio, device, model=None, bundle=None, labels=None):
+def generate_emission(audio, device, model=None, bundle=None):
     if model is None:
         # Initialise the wav2vec model
         bundle = torchaudio.pipelines.WAV2VEC2_ASR_BASE_960H
         model = bundle.get_model().to(device)
-        labels = bundle.get_labels()
         
+    labels = bundle.get_labels()
     # Generate the emission matrix
     with torch.inference_mode():
         waveform, _ = torchaudio.load(audio)

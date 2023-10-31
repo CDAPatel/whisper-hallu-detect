@@ -8,5 +8,7 @@ __pycache__/
 thumbs.db
 .DS_Store
 .idea
-
+test_results/
 *.json
+test_results/analysis.py
+
