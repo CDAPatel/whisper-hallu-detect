@@ -26,16 +26,13 @@ Notes:
 
 import torch
 import torchaudio
-from .hallu_detect_utils import clean_string, find_gradient, peak_detection, Point, moving_average
+from .hallu_detect_utils import clean_string, find_gradient, segment_detection, Point
 
 def hallu_detect(
     transcript=None,
     audio=None,
-    window_size=5,         # Size of Gradient and Smoothing window
-    gauss_std=2,            # Standard deviation of Gaussian window for smoothing #TODO: If Gaussian is not going to be used, remove this.
-    height_threshold=0.85,  # Threshold for minimum height in peak detection
-    mean_threshold=0.85,    # Threshold for average gradient in peak detection
-    peak_distance=2,        # Peak width
+    window_size=5,          # Size of gradient window
+    seg_threshold=3,        # Minimum sequence length to be classified as a hallucination
     model = None,           # Temporary to reduce time while testing.
     device = None,
     bundle = None,
@@ -89,11 +86,8 @@ def hallu_detect(
     # Gradient calcuation
     gradient = find_gradient(values, window_size)
 
-    # Smoothing with moving average
-    gradient_smooth = moving_average(gradient, window_size)
-
-    # Find peaks and check if they meet the threshold for hallucination 
-    segments = peak_detection(gradient_smooth, mean_threshold, peak_distance, height_threshold)
+    # Find hallucinated segments
+    segments = segment_detection(gradient, seg_threshold)
     
     if segments:    # If segments has elements then a hallucination has been detected
         print("Hallucination detected in transcript.")

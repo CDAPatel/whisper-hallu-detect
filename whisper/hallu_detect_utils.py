@@ -14,8 +14,6 @@ Overview of important functions:
 import string
 import inflect
 import re
-import numpy as np
-from scipy.signal import windows, convolve, find_peaks
 from dataclasses import dataclass
 from typing import List, Dict
 
@@ -146,34 +144,33 @@ def find_gradient(values, window_size):
         
     return result
 
-# TODO: Determine if this function needs to be removed
-def gaussian_smooth(values, window_size, std):
-    # Create a Gaussian window
-    window = windows.gaussian(window_size, std)  
-    return convolve(values, window/window.sum(), mode='same')
+def segment_detection(data, seg_threshold):
+    # Finds all segments of consecutive 1s that are of length seq_threshold or larger
+    # Returns the start and end indexes of these segments
+    curr_length = 0
+    seg_start_idx = None
 
-def moving_average(values, window_size):
-    return convolve(values, np.ones(window_size)/window_size, mode='same')
-
-def peak_detection(data, mean_threshold, peak_distance, height_threshold):
-    # Find indexs of peaks that meet mean_threshold requirement
-    peaks, _ = find_peaks(data, height=height_threshold, distance=peak_distance)
-
-    # Result will hold all segments that have been identified as potential hallucinations
     result = []
 
-    for peak in peaks:
-        # Determine size of peak
-        start = max(0, peak - peak_distance//2)
-        end = min(len(data), peak + peak_distance//2)
-        seg = data[start:end] # think this might need adjusting?
-        seg_mean = np.mean(seg)
-        seg_std = np.std(seg)
-
-        # Check if peak meets conditions to be classified as a hallucination
-        if seg_mean >= mean_threshold:
-            result.append((start, end))
-
+    for i, val in enumerate(data):
+        # Check if the current element is 1
+        if val == 1:
+            # Start a new sequence if the current sequence length is 0
+            if curr_length == 0:
+                seg_start_idx = i
+            # Increment the sequence length
+            curr_length += 1
+        else:
+            # Check length of segment against threshold
+            if curr_length >= seg_threshold:
+                result.append((seg_start_idx, i-1))
+            # Reset the current sequence length
+            curr_length = 0
+    
+    # Check for a sequence at the end of the array
+    if curr_length >= seg_threshold:
+        result.append((seg_start_idx, len(data) - 1))
+    
     return result
 
 @dataclass

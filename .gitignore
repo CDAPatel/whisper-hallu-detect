@@ -12,3 +12,4 @@ test_results/
 *.json
 test_results/analysis.py
 
+tests/test_sequence.py

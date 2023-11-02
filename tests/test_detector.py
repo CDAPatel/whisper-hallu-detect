@@ -10,7 +10,7 @@ from whisper.hallu_detect import hallu_detect
 
 data_path = "C:\\dev\\librispeech-pause\\perturbed_dataset_annotated_clean.csv"
 audio_path = "C:\\dev\\librispeech-pause\\perturb_audio"
-result_path = "C:\\dev\\whisper-hallu-detect\\test_results\\init_param_tests\\mean_85_height_85_with_std.csv"
+result_path = "C:\\dev\\whisper-hallu-detect\\test_results\\full_tests\\threshold_85_window_5_dist_2.csv"
 
 def main():
     # Need to load the data
@@ -23,8 +23,8 @@ def main():
     model = bundle.get_model().to(device)
 
     for idx, row in data.iterrows():
-        if idx > 1000: 
-            break
+        #if idx > 1000: 
+        #    break
 
         transcription = row['transcription']
         filename = row['filename']
@@ -33,7 +33,7 @@ def main():
         print("Testing index: ", idx)
 
         # Call detector
-        result = hallu_detect(transcript=transcription, audio=audio_file, window_size=5, peak_distance=2, mean_threshold=0.85, height_threshold=0.85, model=model, device=device, bundle=bundle, is_test=True)
+        result = hallu_detect(transcript=transcription, audio=audio_file, window_size=5, seg_threshold=3, model=model, device=device, bundle=bundle, is_test=True)
 
         # result handling and add to data
         if result == 'Detector Error':
