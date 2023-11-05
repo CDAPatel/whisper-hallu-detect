@@ -61,7 +61,7 @@ def hallu_detect(
         result = 'Error'
         return result
 
-    # Generate the emission matrix - holds probabilites for each label at each frame (time)
+    # Generate the emission matrix - holds probabilites for each label at each (time) frame 
     if is_test:
         emission, labels, waveform = generate_emission(audio, device, model=model, bundle=bundle)
     else:
@@ -113,20 +113,25 @@ def generate_emission(audio, device, model=None, bundle=None):
 
 def generate_trellis(emission, tokens, blank_id=0):
     num_frame = emission.size(0)
-    num_tokens = len(tokens) # We assume that all the tokens in the transcript are present
+    num_tokens = len(tokens) # Align all tokens
 
     # Trellis has extra diemsions for both time axis and tokens.
     # The extra dim for tokens represents <SoS> (start-of-sentence)
     # The extra dim for time axis is for simplification of the code.
-    trellis = torch.empty((num_frame + 1, num_tokens + 1)) # 170x46
-    trellis[0, 0] = 0
-    trellis[1:, 0] = torch.cumsum(emission[:, 0], 0) # The bottom row, probabilities from emission matrix, k0 = 1
+    trellis = torch.empty((num_frame + 1, num_tokens + 1))
+    trellis[0, 0] = 0   # Initialise starting point for Trellis generation. Value is in log domain
+    trellis[1:, 0] = torch.cumsum(emission[:, 0], 0) # Trellis values that correspond to never changing token
+    # Block out invalid paths in the trellis
     trellis[0, -num_tokens:] = -float("inf")
-    #trellis[-num_tokens:, 0] = float("inf") # Should I delete this????
+    trellis[-num_tokens:, 0] = float("inf") 
 
     for t in range(num_frame):
+        # Trellis is implemented one row at a time.
+        # Rows -> Transcript
+        # Columns -> Time
         trellis[t + 1, 1:] = torch.maximum(
             # Score for staying at the same token
+            # Blank token corresponds to a repeat
             trellis[t, 1:] + emission[t, blank_id],
             # Score for changing to the next token
             trellis[t, :-1] + emission[t, tokens],
@@ -134,9 +139,7 @@ def generate_trellis(emission, tokens, blank_id=0):
     return trellis
 
 def path_finding(trellis, emission, tokens, blank_id=0):
-
-
-    # back to trying FORCED alginment
+    # Take starting point as most probable point for final token in transcript
     j = trellis.size(1) - 1
     t_start = torch.argmax(trellis[:, j]).item()
 
