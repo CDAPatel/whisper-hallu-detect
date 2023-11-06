@@ -13,3 +13,4 @@ test_results/
 test_results/analysis.py
 
 tests/test_sequence.py
+tests/test_integration.py

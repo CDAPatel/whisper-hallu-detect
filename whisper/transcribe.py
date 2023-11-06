@@ -29,6 +29,8 @@ from .utils import (
     str2bool,
 )
 
+from .hallu_detect import hallu_detect
+
 if TYPE_CHECKING:
     from .model import Whisper
 
@@ -45,6 +47,7 @@ def transcribe(
     condition_on_previous_text: bool = True,
     initial_prompt: Optional[str] = None,
     word_timestamps: bool = False,
+    hallucination_detect: bool = False,
     prepend_punctuations: str = "\"'“¿([{-",
     append_punctuations: str = "\"'.。,，!！?？:：”)]}、",
     **decode_options,
@@ -86,6 +89,10 @@ def transcribe(
     word_timestamps: bool
         Extract word-level timestamps using the cross-attention pattern and dynamic time warping,
         and include the timestamps for each word in each segment.
+
+    hallucination_detect: bool
+        Check for the presence of hallucinations in the final transcipt, using a forced alignment,
+        between the transcript and audio.
 
     prepend_punctuations: str
         If word_timestamps is True, merge these punctuation symbols with the next word
@@ -368,10 +375,13 @@ def transcribe(
             # update progress bar
             pbar.update(min(content_frames, seek) - previous_seek)
 
+    # Text calculation needs to occur outside of the dict definition for hallucination detection
+    text = tokenizer.decode(all_tokens[len(initial_prompt_tokens) :])
     return dict(
-        text=tokenizer.decode(all_tokens[len(initial_prompt_tokens) :]),
+        text=text,
         segments=all_segments,
         language=language,
+        **({'hallucination_detection': hallu_detect(transcript=text, audio=audio)} if hallucination_detect else {})
     )
 
 
