@@ -12,9 +12,10 @@ def main():
 
 
     # Simple call to hallu_detect()
-    result = hallu_detect(transcript=transcript_in , audio=audio_in)
+    result = hallu_detect(transcript=transcript_in, audio=audio_in, word_detect=True)
 
-    print(result)
+    # Correct transcript of above
+    print("SHE RAN TO HER HUSBAND'S SIDE AT ONCE AND HELPED HIM LIFT THE FOUR KETTLES FROM THE FIRE")
 
 if __name__ == "__main__":
     main()

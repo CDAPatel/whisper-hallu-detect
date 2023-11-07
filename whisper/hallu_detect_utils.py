@@ -16,6 +16,8 @@ import inflect
 import re
 from dataclasses import dataclass
 from typing import List, Dict
+from colorama import init, Fore, Style
+init(autoreset=True)
 
 def clean_string(text):
     # Check for invalid characters. Detector is only built for English
@@ -172,6 +174,63 @@ def segment_detection(data, seg_threshold):
         result.append((seg_start_idx, len(data) - 1))
     
     return result
+
+def segment_connection(segments, window_size, max_len):
+    # Connects segments that are within window_size of each other together
+
+    # First expand the segments to account for gradient window
+    segments = expand_segments(segments, window_size//2, max_len)
+
+    result = [segments[0]]
+
+    for curr_start, curr_end in segments[1:]:
+        prev_start, prev_end = result[-1]
+
+        if curr_start - prev_end <= window_size:  # Two segments are close enough
+            result[-1] = (prev_start, curr_end)
+        else: # Add a new segment to the result
+            result.append((curr_start, curr_end))
+
+    return result
+
+def expand_segments(segments, window_size, max_len):
+    # Expands each segment by window_size in either direction
+    # Accounts for the fact that we want to use the segment indices for the values not gradients
+    result = []
+
+    for start, end in segments:
+        start = max(0, start - window_size)
+        end = min(end + window_size, max_len)
+        result.append((start, end))
+
+    return result
+
+def find_tokens(segments, values):
+    # Convert the time index in the segments to the corresponding token index from the values
+    result = []
+
+    for start, end in segments:
+        result.append((values[start], values[end]))
+
+    return result
+
+def print_hallus(transcript, segments):
+    # Changes colour of suspected hallucinations to red and then prints
+
+    # Replace | with whitespaces in transcript
+    clean_transcript = transcript.replace('|', ' ')
+    
+    idx = 0
+    result = ""
+
+    for start, end in segments:
+        result += clean_transcript[idx:start]
+        result += Fore.RED + clean_transcript[start:end] + Fore.RESET
+        idx = end
+    
+    result += clean_transcript[idx:]
+
+    print(result)
 
 @dataclass
 class Point:

@@ -48,6 +48,7 @@ def transcribe(
     initial_prompt: Optional[str] = None,
     word_timestamps: bool = False,
     hallucination_detect: bool = False,
+    hallucination_detect_word: bool = False,
     prepend_punctuations: str = "\"'“¿([{-",
     append_punctuations: str = "\"'.。,，!！?？:：”)]}、",
     **decode_options,
@@ -93,6 +94,11 @@ def transcribe(
     hallucination_detect: bool
         Check for the presence of hallucinations in the final transcipt, using a forced alignment,
         between the transcript and audio.
+
+    hallucination_detect_word: bool
+        Uses results of hallucination detector to identify suspected hallucinations in transcript.
+        Displays this by printing red text. This feature is experimental and is not extremely accurate
+        but provides decent indications of hallucinations in a transcript.
 
     prepend_punctuations: str
         If word_timestamps is True, merge these punctuation symbols with the next word
@@ -381,7 +387,7 @@ def transcribe(
         text=text,
         segments=all_segments,
         language=language,
-        **({'hallucination_detection': hallu_detect(transcript=text, audio=audio)} if hallucination_detect else {})
+        **({'hallucination_detection': hallu_detect(transcript=text, audio=audio, word_detect=hallucination_detect_word)} if hallucination_detect else {})
     )
 
 
