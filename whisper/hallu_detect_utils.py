@@ -175,11 +175,8 @@ def segment_detection(data, seg_threshold):
     
     return result
 
-def segment_connection(segments, window_size, max_len):
+def segment_connection(segments, window_size):
     # Connects segments that are within window_size of each other together
-
-    # First expand the segments to account for gradient window
-    segments = expand_segments(segments, window_size//2, max_len)
 
     result = [segments[0]]
 

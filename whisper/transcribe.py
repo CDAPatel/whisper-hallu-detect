@@ -382,6 +382,8 @@ def transcribe(
             pbar.update(min(content_frames, seek) - previous_seek)
 
     # Text calculation needs to occur outside of the dict definition for hallucination detection
+    # This should be reworked so that the detector works on the individual chunks that Whisper processes
+    # It should be a fairly trivial change
     text = tokenizer.decode(all_tokens[len(initial_prompt_tokens) :])
     return dict(
         text=text,

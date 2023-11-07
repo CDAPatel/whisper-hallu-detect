@@ -26,7 +26,7 @@ Notes:
 
 import torch
 import torchaudio
-from .hallu_detect_utils import clean_string, find_gradient, segment_detection, segment_connection, find_tokens, print_hallus, Point
+from .hallu_detect_utils import clean_string, find_gradient, segment_detection, segment_connection, expand_segments, find_tokens, print_hallus, Point
 
 def hallu_detect(
     transcript=None,
@@ -38,7 +38,6 @@ def hallu_detect(
     bundle = None,
     word_detect = False,
     is_test= False           # Flag used for large scale testing so that the wav2vec model is not loaded every iteration
-    #TODO: Add a flag for word detection
     ):
     # Find the device, check for invalid input
     if device is None:
@@ -94,17 +93,18 @@ def hallu_detect(
         print("Hallucination detected in transcript.")
         result = 'Hallucination'
     elif segments and word_detect: # Hallucination detected and word detection is requested
-        print("Hallucination detected. Suspected hallucination highlighted in red")
+        print("Hallucination detected. Suspected hallucination highlighted in red: ")
         result = 'Hallucination'
-        hallucinated_segments = segment_connection(segments, window_size, len(values))
+        segments = expand_segments(segments, window_size, len(values))
         # Convert from time indexs to token indexs
         # Values is used as the indices in hallucinated_segments are originally calculated from values
         # This could be modified to use the path - but the fact that the path time index do not start from 0 needs to be accounted for
-        hallucinated_tokens = find_tokens(hallucinated_segments, values)
-        print_hallus(clean_transcript, hallucinated_tokens)
+        hallucinated_tokens = find_tokens(segments, values)
+        hallucinated_segments = segment_connection(hallucinated_tokens, window_size)
+
+        print_hallus(clean_transcript, hallucinated_segments)
 
     return result
-    #TODO: More work required for word based detection. 
 
 def generate_emission(audio, device, model=None, bundle=None):
     if model is None:
