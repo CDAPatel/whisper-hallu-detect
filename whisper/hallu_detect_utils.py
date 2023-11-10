@@ -6,9 +6,10 @@ Description:
 
 Overview of important functions:
     - clean_string(): Formats input transcription
-    - find_gradient(): Finds the gradient of token path
-    - gaussian_smooth(): Applys a gaussian window to smooth the calculated gradient
-    - peak_detection(): Finds peaks in the smoothed gradient & determines if there is a hallucination
+    - find_gradient(): Finds the gradient of token path. Uses a window of window_size
+    - segment_detection(): Looks for sequences of maximum gradient longer than length_threshold
+    - expand_segments(): Used in character detection to undo the effect of the gradient window
+    - segment_connection(): Used in character detection to combine nearby segments
 """
 
 import string

@@ -36,7 +36,7 @@ def hallu_detect(
     model = None,           # Temporary to reduce time while testing.
     device = None,
     bundle = None,
-    word_detect = False,
+    char_detect = False,
     is_test= False           # Flag used for large scale testing so that the wav2vec model is not loaded every iteration
     ):
     # Find the device, check for invalid input
@@ -89,10 +89,10 @@ def hallu_detect(
     # Find hallucinated segments
     segments = segment_detection(gradient, seg_threshold)
     
-    if segments and not word_detect:    # If segments has elements then a hallucination has been detected
+    if segments and not char_detect:    # If segments has elements then a hallucination has been detected
         print("Hallucination detected in transcript.")
         result = 'Hallucination'
-    elif segments and word_detect: # Hallucination detected and word detection is requested
+    elif segments and char_detect: # Hallucination detected and character detection is requested
         print("Hallucination detected. Suspected hallucination highlighted in red: ")
         result = 'Hallucination'
         segments = expand_segments(segments, window_size, len(values))
